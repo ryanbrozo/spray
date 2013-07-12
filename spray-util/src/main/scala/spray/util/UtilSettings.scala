@@ -26,10 +26,13 @@ case class UtilSettings(
 
 object UtilSettings {
   def apply(system: ActorSystem): UtilSettings =
-    apply(system.settings.config getConfig "spray.util")
+    apply(system.settings.config)
 
   def apply(config: Config): UtilSettings = {
-    val c = config withFallback ConfigFactory.defaultReference(getClass.getClassLoader)
+    val c = config
+      .withFallback(ConfigFactory.defaultReference(getClass.getClassLoader))
+      .getConfig("spray.util")
+
     UtilSettings(
       c getBoolean "log-actor-paths-with-dots",
       c getBoolean "log-actor-system-name")

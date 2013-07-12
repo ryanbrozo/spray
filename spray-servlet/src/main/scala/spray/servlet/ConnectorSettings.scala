@@ -43,10 +43,13 @@ case class ConnectorSettings(
 
 object ConnectorSettings {
   def apply(system: ActorSystem): ConnectorSettings =
-    apply(system.settings.config getConfig "spray.servlet")
+    apply(system.settings.config)
 
   def apply(config: Config): ConnectorSettings = {
-    val c = config withFallback ConfigFactory.defaultReference(getClass.getClassLoader)
+    val c = config
+      .withFallback(ConfigFactory.defaultReference(getClass.getClassLoader))
+      .getConfig("spray.servlet")
+
     ConnectorSettings(
       c getString "boot-class",
       c getDuration "request-timeout",

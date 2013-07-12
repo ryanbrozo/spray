@@ -36,10 +36,13 @@ object RoutingSettings {
     apply(actorSystem)
 
   def apply(system: ActorSystem): RoutingSettings =
-    apply(system.settings.config getConfig "spray.routing")
+    apply(system.settings.config)
 
   def apply(config: Config): RoutingSettings = {
-    val c = config withFallback ConfigFactory.defaultReference(getClass.getClassLoader)
+    val c = config
+      .withFallback(ConfigFactory.defaultReference(getClass.getClassLoader))
+      .getConfig("spray.routing")
+
     RoutingSettings(
       c getBoolean "verbose-error-messages",
       c getBytes "file-chunking-threshold-size",

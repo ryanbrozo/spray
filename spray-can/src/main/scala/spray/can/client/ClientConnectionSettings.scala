@@ -45,12 +45,14 @@ case class ClientConnectionSettings(
 
 object ClientConnectionSettings {
   def apply(system: ActorSystem): ClientConnectionSettings =
-    apply(system.settings.config getConfig "spray.can.client")
+    apply(system.settings.config)
 
   def apply(config: Config): ClientConnectionSettings = {
     val c = config
       .withFallback(Utils.sprayConfigAdditions)
       .withFallback(ConfigFactory.defaultReference(getClass.getClassLoader))
+      .getConfig("spray.can.client")
+
     ClientConnectionSettings(
       c getString "user-agent-header",
       c getBoolean "ssl-encryption",

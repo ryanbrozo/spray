@@ -35,10 +35,13 @@ case class SiteSettings(
 
 object SiteSettings {
   def apply(system: ActorSystem): SiteSettings =
-    apply(system.settings.config getConfig "spray.site")
+    apply(system.settings.config)
 
   def apply(config: Config): SiteSettings = {
-    val c = config withFallback ConfigFactory.defaultReference(getClass.getClassLoader)
+    val c = config
+      .withFallback(ConfigFactory.defaultReference(getClass.getClassLoader))
+      .getConfig("spray.site")
+
     SiteSettings(
       c getString "interface",
       c getInt "port",

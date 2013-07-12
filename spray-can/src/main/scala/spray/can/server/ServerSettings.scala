@@ -65,12 +65,14 @@ case class ServerSettings(
 
 object ServerSettings {
   def apply(system: ActorSystem): ServerSettings =
-    apply(system.settings.config getConfig "spray.can.server")
+    apply(system.settings.config)
 
   def apply(config: Config): ServerSettings = {
     val c = config
       .withFallback(Utils.sprayConfigAdditions)
       .withFallback(ConfigFactory.defaultReference(getClass.getClassLoader))
+      .getConfig("spray.can.server")
+
     val backpressureSettings =
       Some(BackpressureSettings(
         c getInt "back-pressure.noack-rate",

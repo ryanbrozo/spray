@@ -35,10 +35,13 @@ case class HostConnectorSettings(
 
 object HostConnectorSettings {
   def apply(system: ActorSystem): HostConnectorSettings =
-    apply(system.settings.config getConfig "spray.can.host-connector")
+    apply(system.settings.config)
 
   def apply(config: Config): HostConnectorSettings = {
-    val c = config withFallback ConfigFactory.defaultReference(getClass.getClassLoader)
+    val c = config
+      .withFallback(ConfigFactory.defaultReference(getClass.getClassLoader))
+      .getConfig("spray.can.host-connector")
+
     HostConnectorSettings(
       c getInt "max-connections",
       c getInt "max-retries",
