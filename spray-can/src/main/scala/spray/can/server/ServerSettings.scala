@@ -20,6 +20,8 @@ import com.typesafe.config.{ ConfigFactory, Config }
 import scala.concurrent.duration.Duration
 import akka.actor.ActorSystem
 import spray.can.parsing.ParserSettings
+import spray.http.parser.HttpParser
+import spray.http.HttpHeaders._
 import spray.util._
 
 case class BackpressureSettings(noAckRate: Int, readingLowWatermark: Int)
@@ -43,6 +45,7 @@ case class ServerSettings(
     bindTimeout: Duration,
     unbindTimeout: Duration,
     registrationTimeout: Duration,
+    defaultHostHeader: Host,
     backpressureSettings: Option[BackpressureSettings],
     parserSettings: ParserSettings) {
 
@@ -73,6 +76,13 @@ object ServerSettings {
       .withFallback(ConfigFactory.defaultReference(getClass.getClassLoader))
       .getConfig("spray.can.server")
 
+    val defaultHostHeader =
+      HttpParser.parseHeader(RawHeader("Host", c getString "default-host-header")) match {
+        case Right(x: Host) ⇒ x
+        case Left(error)    ⇒ sys.error(error.withSummary("Configured `default-host-header` is illegal").formatPretty)
+        case Right(_)       ⇒ throw new IllegalStateException
+      }
+
     val backpressureSettings =
       Some(BackpressureSettings(
         c getInt "back-pressure.noack-rate",
@@ -97,6 +107,7 @@ object ServerSettings {
       c getDuration "bind-timeout",
       c getDuration "unbind-timeout",
       c getDuration "registration-timeout",
+      defaultHostHeader,
       backpressureSettings,
       ParserSettings(c getConfig "parsing"))
   }
