@@ -51,7 +51,7 @@ private[parser] trait SimpleHeaders {
   // see also https://issues.apache.org/bugzilla/show_bug.cgi?id=35122 (WONTFIX in Apache 2 issue) and
   // https://bugzilla.mozilla.org/show_bug.cgi?id=464162 (FIXED in mozilla)
   def `*Host` = rule(
-    (Token | IPv6Reference) ~ OptWS ~ optional(":" ~ oneOrMore(Digit) ~> (_.toInt)) ~ EOI
+    (Token | IPv6Reference | push("")) ~ OptWS ~ optional(":" ~ oneOrMore(Digit) ~> (_.toInt)) ~ EOI
       ~~> ((h, p) ⇒ Host(h, p.getOrElse(0))))
 
   def `*Last-Modified` = rule {
