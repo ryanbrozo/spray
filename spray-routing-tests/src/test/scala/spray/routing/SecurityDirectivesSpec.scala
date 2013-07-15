@@ -70,4 +70,39 @@ class SecurityDirectivesSpec extends RoutingSpec {
         check { entityAs[String] === "42" }
     }
   }
+
+  val hawkDontAuth = new HawkAuthenticator[String](_ ⇒ Future.successful(None))
+
+  val hawkDoAuth = new HawkAuthenticator[String]({ userPassOption ⇒
+    Future.successful(Some(HawkUser("1234","1234","sha256"),"Bob"))
+  })
+
+  val hawkCredentials = GenericHttpCredentials("Hawk", Map(
+    "id" -> "1234", "ts" -> "1234", "nonce" -> "1234", "hash" -> "1234", "ext" -> "1234", "mac" -> "1234"))
+
+  "the 'authenticate(HawkAuthenticator)' directive" should {
+    "reject requests without Authorization header with an AuthenticationRequiredRejection" in {
+      Get() ~> {
+        authenticate(hawkDontAuth) { echoComplete }
+      } ~> check { rejection === AuthenticationRequiredRejection("Hawk", "", Map.empty) }
+    }
+    "reject unauthenticated requests with Authorization header with an AuthorizationFailedRejection" in {
+      Get() ~> Authorization(hawkCredentials) ~> {
+        authenticate(hawkDontAuth) { echoComplete }
+      } ~> check { rejection === AuthenticationFailedRejection("") }
+    }
+    "extract the object representing the user identity created by successful authentication" in {
+      Get() ~> Authorization(hawkCredentials) ~> {
+        authenticate(hawkDoAuth) { echoComplete }
+      } ~> check { entityAs[String] === "1234" }
+    }
+    "properly handle exceptions thrown in its inner route" in {
+      object TestException extends spray.util.SingletonException
+      Get() ~> Authorization(hawkCredentials) ~> {
+        handleExceptions(ExceptionHandler.default) {
+          authenticate(hawkDoAuth) { _ ⇒ throw TestException }
+        }
+      } ~> check { status === StatusCodes.InternalServerError }
+    }
+  }
 }
