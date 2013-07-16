@@ -19,8 +19,10 @@ package spray.routing
 import scala.concurrent.Future
 import akka.event.NoLogging
 import spray.routing.authentication._
+import hawk._
 import spray.http._
 import HttpHeaders._
+import spray.http.Uri.Query
 
 class SecurityDirectivesSpec extends RoutingSpec {
 
@@ -71,14 +73,15 @@ class SecurityDirectivesSpec extends RoutingSpec {
     }
   }
 
-  val hawkDontAuth = new HawkAuthenticator[String](_ ⇒ Future.successful(None))
+  val hawkDontAuth = HawkAuthenticator[String]({ _ ⇒ Future.successful(None) }, { () ⇒ 12345L })
 
-  val hawkDoAuth = new HawkAuthenticator[String]({ userPassOption ⇒
-    Future.successful(Some(HawkUser("1234","1234","sha256"),"Bob"))
-  })
+  val hawkDoAuth = HawkAuthenticator[String]({ userPassOption ⇒
+    Future.successful(Some(HawkCredentials[String]("dh37fgj492je", "werxhqb98rpaxn39848xrunpaw3489ruxnpa98w4rxn", "HMACSHA256", "Bob")))
+  },
+    { () ⇒ 12345L })
 
   val hawkCredentials = GenericHttpCredentials("Hawk", Map(
-    "id" -> "1234", "ts" -> "1234", "nonce" -> "1234", "hash" -> "1234", "ext" -> "1234", "mac" -> "1234"))
+    "id" -> "dh37fgj492je", "ts" -> "1353832234", "nonce" -> "j4h3g2", "ext" -> "some-app-ext-data", "mac" -> "6R4rV5iE+NPoym+WwjeHzjAGXUtLNIxmo1vpMofpLAE="))
 
   "the 'authenticate(HawkAuthenticator)' directive" should {
     "reject requests without Authorization header with an AuthenticationRequiredRejection" in {
@@ -87,22 +90,31 @@ class SecurityDirectivesSpec extends RoutingSpec {
       } ~> check { rejection === AuthenticationRequiredRejection("Hawk", "", Map.empty) }
     }
     "reject unauthenticated requests with Authorization header with an AuthorizationFailedRejection" in {
-      Get() ~> Authorization(hawkCredentials) ~> {
-        authenticate(hawkDontAuth) { echoComplete }
-      } ~> check { rejection === AuthenticationFailedRejection("") }
+      Get("http://www.example.com:8000/abc") ~> Authorization(hawkCredentials) ~>
+        {
+          authenticate(hawkDontAuth) { echoComplete }
+        } ~> check { rejection === AuthenticationFailedRejection("") }
+    }
+    "reject incorrect mac in Authorization header with an AuthorizationFailedRejection" in {
+      Get("http://www.example.com:8000/abc") ~> Authorization(hawkCredentials) ~>
+        {
+          authenticate(hawkDoAuth) { echoComplete }
+        } ~> check { rejection === AuthenticationFailedRejection("") }
     }
     "extract the object representing the user identity created by successful authentication" in {
-      Get() ~> Authorization(hawkCredentials) ~> {
-        authenticate(hawkDoAuth) { echoComplete }
-      } ~> check { entityAs[String] === "1234" }
+      Get("http://example.com:8000/resource/1?b=1&a=2") ~> Authorization(hawkCredentials) ~>
+        {
+          authenticate(hawkDoAuth) { echoComplete }
+        } ~> check { entityAs[String] === "Bob" }
     }
     "properly handle exceptions thrown in its inner route" in {
       object TestException extends spray.util.SingletonException
-      Get() ~> Authorization(hawkCredentials) ~> {
-        handleExceptions(ExceptionHandler.default) {
-          authenticate(hawkDoAuth) { _ ⇒ throw TestException }
-        }
-      } ~> check { status === StatusCodes.InternalServerError }
+      Get("http://example.com:8000/resource/1?b=1&a=2") ~> Authorization(hawkCredentials) ~>
+        {
+          handleExceptions(ExceptionHandler.default) {
+            authenticate(hawkDoAuth) { _ ⇒ throw TestException }
+          }
+        } ~> check { status === StatusCodes.InternalServerError }
     }
   }
 }

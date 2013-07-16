@@ -22,7 +22,6 @@ package object authentication {
   type ContextAuthenticator[T] = RequestContext ⇒ Future[Authentication[T]]
   type Authentication[T] = Either[Rejection, T]
   type UserPassAuthenticator[T] = Option[UserPass] ⇒ Future[Option[T]]
-  type HawkCredentialsRetriever[T] = Option[String] ⇒ Future[Option[(HawkUser,T)]]
 }
 
 package authentication {
