@@ -64,7 +64,7 @@ In order to develop a better understanding for how *spray* models HTTP you proba
 around the `spray-http sources`_ (ideally with an IDE that supports proper code navigation).
 
 .. _here: `spray-http sources`_
-.. _spray-http sources: https://github.com/spray/spray/tree/release/1.1/spray-http/src/main/scala/spray/http
+.. _spray-http sources: https://github.com/spray/spray/tree/release/1.2/spray-http/src/main/scala/spray/http
 
 
 Content-Type Header
@@ -93,4 +93,4 @@ incoming responses by :ref:`spray-client`. File extension resolution (as used fo
 :ref:`FileAndResourceDirectives`) will work as expected.
 
 .. _IANA MIME media type registry: http://www.iana.org/assignments/media-types/index.html
-.. _MediaTypes: https://github.com/spray/spray/blob/master/spray-http/src/main/scala/spray/http/MediaType.scala
+.. _MediaTypes: https://github.com/spray/spray/blob/release/1.2/spray-http/src/main/scala/spray/http/MediaType.scala

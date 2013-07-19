@@ -18,7 +18,7 @@ package akka.spray
 
 import scala.annotation.tailrec
 import akka.util.Unsafe
-import akka.dispatch._
+import akka.dispatch.sysmsg.{ Unwatch, Watch, Terminate, SystemMessage }
 import akka.actor._
 
 /**

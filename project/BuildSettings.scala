@@ -5,10 +5,9 @@ import com.typesafe.sbt.SbtScalariform.ScalariformKeys
 import sbtassembly.Plugin.AssemblyKeys._
 import sbtassembly.Plugin._
 import spray.revolver.RevolverPlugin.Revolver
-import twirl.sbt.TwirlPlugin.Twirl
 
 object BuildSettings {
-  val VERSION = "1.1-SNAPSHOT"
+  val VERSION = "1.2-M8"
 
   lazy val basicSettings = seq(
     version               := NightlyBuildSupport.buildVersion(VERSION),
@@ -77,9 +76,6 @@ object BuildSettings {
       }
     }
   )
-
-  lazy val siteSettings = basicSettings ++ formatSettings ++ noPublishing ++ Twirl.settings ++ Revolver.settings ++
-    SiteSupport.settings
 
   lazy val docsSettings = basicSettings ++ noPublishing ++ seq(
     unmanagedSourceDirectories in Test <<= baseDirectory { _ ** "code" get }

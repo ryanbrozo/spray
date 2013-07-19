@@ -1,6 +1,6 @@
-Version 1.1-M8 (2013-06-10)
+Version 1.2-M8 (2013-06-10)
 ---------------------------
-- Upgraded to Scala 2.10.2, Akka 2.1.4 and latest versions of all dependencies
+- Upgraded to Scala 2.10.2, Akka 2.2.0-RC1 and latest versions of all dependencies
 - general: added automatic source formatting via sbt-scalariform
 - spray-caching: folded `Cache.fromFuture` into Cache.apply
 - spray-can:
@@ -32,8 +32,7 @@ Version 1.1-M8 (2013-06-10)
 
 - spray-io:
 
-  + migrated large majority of logic to new Akka I/O layer (for Akka 2.2)
-  + backported new Akka I/O layer from Akka 2.2 to Akka 2.1
+  + migrated large majority of logic to new Akka I/O layer
   + updated remaining logic
 
 - spray-routing:

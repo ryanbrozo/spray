@@ -25,7 +25,7 @@ Apart from the Scala library (see :ref:`Current Versions` chapter) *spray-cachin
 
 - :ref:`spray-util`
 - concurrentlinkedhashmap_
-- akka-actor 2.1.x (with 'provided' scope, i.e. you need to pull it in yourself)
+- akka-actor 2.2.x (with 'provided' scope, i.e. you need to pull it in yourself)
 
 
 Installation
@@ -104,6 +104,6 @@ has to be strictly greater than the time-to-idle.
    they might prevent gargabe collection of their values for longer than expected.
 
 
-.. _Cache: https://github.com/spray/spray/blob/master/spray-caching/src/main/scala/spray/caching/Cache.scala
-.. _SimpleLruCache and ExpiringLruCache: https://github.com/spray/spray/blob/master/spray-caching/src/main/scala/spray/caching/LruCache.scala
+.. _Cache: https://github.com/spray/spray/blob/v1.2-M8/spray-caching/src/main/scala/spray/caching/Cache.scala
+.. _SimpleLruCache and ExpiringLruCache: https://github.com/spray/spray/blob/v1.2-M8/spray-caching/src/main/scala/spray/caching/LruCache.scala
 .. _concurrentlinkedhashmap: http://code.google.com/p/concurrentlinkedhashmap/
