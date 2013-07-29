@@ -23,6 +23,7 @@ import MediaTypes._
 import MediaRanges._
 import HttpCharsets._
 import HttpEncodings._
+import HttpMethods._
 import parser.HttpParser
 
 class HttpHeaderSpec extends Specification {
@@ -34,29 +35,55 @@ class HttpHeaderSpec extends Specification {
 
     "The HTTP header model must correctly parse and render the following examples" ^
       p ^
-      "Accept: audio/midi; q=0.2, audio/basic" !
-      example(Accept(`audio/midi`, `audio/basic`))_ ^
-      "Accept: text/plain; q=0.5, text/html,\r\n text/css; q=0.8" !
-      example(Accept(`text/plain`, `text/html`, `text/css`))_ ^
-      "Accept: text/html, image/gif, image/jpeg, *; q=.2, */*; q=.2" !
-      example(Accept(`text/html`, `image/gif`, `image/jpeg`, `*/*`, `*/*`), fix(_).replace("*,", "*/*,"))_ ^
+      "Accept: audio/midi;q=0.2, audio/basic" !
+      example(Accept(`audio/midi` withQValue 0.2, `audio/basic`))_ ^
+      "Accept: text/plain;q=0.5, text/html,\r\n text/css;q=0.8" !
+      example(Accept(`text/plain` withQValue 0.5, `text/html`, `text/css` withQValue 0.8))_ ^
+      "Accept: text/html, image/gif, image/jpeg, *;q=.2, */*;q=.2" !
+      example(Accept(`text/html`, `image/gif`, `image/jpeg`, `*/*` withQValue 0.2, `*/*` withQValue 0.2), fix(_).replace(" *;", " */*;").replace(";q=.2", ";q=0.2"))_ ^
       "Accept: application/vnd.spray" !
       example(Accept(`application/vnd.spray`))_ ^
       "Accept: */*, text/*; foo=bar, custom/custom; bar=\"b>az\"" !
       example(Accept(`*/*`, MediaRange.custom("text", Map("foo" -> "bar")), MediaType.custom("custom", "custom", parameters = Map("bar" -> "b>az"))))_ ^
       p ^
       "Accept-Charset: utf8; q=0.5, *" !
-      example(`Accept-Charset`(`UTF-8`, HttpCharsets.`*`), fix(_).replace("utf", "UTF-"))_ ^
+      example(`Accept-Charset`(`UTF-8`, HttpCharsets.`*`), fixQ(_).replace("utf", "UTF-"))_ ^
+      p ^
+      "Access-Control-Allow-Origin: *" !
+      example(`Access-Control-Allow-Origin`("*"))_ ^
+      "Access-Control-Allow-Origin: http://spray.io" !
+      example(`Access-Control-Allow-Origin`("http://spray.io"))_ ^
+      p ^
+      "Access-Control-Expose-Headers: Accept, X-My-Header" !
+      example(`Access-Control-Expose-Headers`("Accept", "X-My-Header"))_ ^
+      p ^
+      "Access-Control-Max-Age: 3600" !
+      example(`Access-Control-Max-Age`(3600))_ ^
+      p ^
+      "Access-Control-Allow-Credentials: true" !
+      example(`Access-Control-Allow-Credentials`(true))_ ^
+      p ^
+      "Access-Control-Allow-Methods: GET, POST" !
+      example(`Access-Control-Allow-Methods`(GET, POST))_ ^
+      p ^
+      "Access-Control-Allow-Headers: Accept, X-My-Header" !
+      example(`Access-Control-Allow-Headers`("Accept", "X-My-Header"))_ ^
+      p ^
+      "Access-Control-Request-Method: POST" !
+      example(`Access-Control-Request-Method`(POST))_ ^
+      p ^
+      "Access-Control-Request-Headers: Accept, X-My-Header" !
+      example(`Access-Control-Request-Headers`("Accept", "X-My-Header"))_ ^
       p ^
       "Accept-Encoding: compress, gzip, fancy" !
       example(`Accept-Encoding`(compress, gzip, HttpEncoding.custom("fancy")))_ ^
       "Accept-Encoding: gzip;q=1.0, identity; q=0.5, *;q=0" !
-      example(`Accept-Encoding`(gzip, identity, HttpEncodings.`*`))_ ^
+      example(`Accept-Encoding`(gzip, identity, HttpEncodings.`*`), fixQ)_ ^
       p ^
       "Accept-Language: da, en-gb ;q=0.8, en;q=0.7" !
-      example(`Accept-Language`(Language("da"), Language("en", "gb"), Language("en")))_ ^
+      example(`Accept-Language`(Language("da"), Language("en", "gb"), Language("en")), fixQ)_ ^
       "Accept-Language: de-CH-1901, *;q=0" !
-      example(`Accept-Language`(Language("de", "CH", "1901"), LanguageRanges.`*`))_ ^
+      example(`Accept-Language`(Language("de", "CH", "1901"), LanguageRanges.`*`), fixQ)_ ^
       "Accept-Language: es-419, es" !
       example(`Accept-Language`(Language("es", "419"), Language("es")))_ ^
       p ^
@@ -104,8 +131,8 @@ class HttpHeaderSpec extends Specification {
       example(`Content-Type`(ContentType(MediaType.custom("text", "xml", parameters = Map("version" -> "3")), HttpCharsets.getForKey("windows-1252"))))_ ^
       "Content-Type: text/plain; charset=fancy-pants" !
       errorExample(ErrorInfo("Illegal HTTP header 'Content-Type': Unsupported charset", "fancy-pants"))_ ^
-      "Content-Type: multipart/mixed; boundary=ABC123" ! example(`Content-Type`(ContentType(new `multipart/mixed`("ABC123"))))_ ^
-      "Content-Type: multipart/mixed; boundary=\"ABC/123\"" ! example(`Content-Type`(ContentType(new `multipart/mixed`("ABC/123"))))_ ^
+      "Content-Type: multipart/mixed; boundary=ABC123" ! example(`Content-Type`(ContentType(`multipart/mixed` withBoundary "ABC123")))_ ^
+      "Content-Type: multipart/mixed; boundary=\"ABC/123\"" ! example(`Content-Type`(ContentType(`multipart/mixed` withBoundary "ABC/123")))_ ^
       p ^
       "Cookie: SID=31d4d96e407aad42" ! example(`Cookie`(HttpCookie("SID", "31d4d96e407aad42")))_ ^
       "Cookie: SID=31d4d96e407aad42; lang=en>US" ! example(`Cookie`(HttpCookie("SID", "31d4d96e407aad42"), HttpCookie("lang", "en>US")))_ ^
@@ -131,6 +158,7 @@ class HttpHeaderSpec extends Specification {
       "Location: https://spray.io/ sec" ! errorExample(ErrorInfo("Illegal HTTP header 'Location': Illegal absolute " +
         "URI, unexpected character ' ' at position 17", "\nhttps://spray.io/ sec\n                 ^\n"))_ ^
       p ^
+      "Origin: http://spray.io" ! example(Origin(Uri("http://spray.io")))_ ^
       "Remote-Address: 111.22.3.4" ! example(`Remote-Address`("111.22.3.4"))_ ^
       p ^
       "Server: as fghf.fdf/xx" ! example(`Server`(Seq(ProductVersion("as"), ProductVersion("fghf.fdf", "xx"))))_ ^
@@ -172,6 +200,8 @@ class HttpHeaderSpec extends Specification {
       "X-Forwarded-For: 1.2.3.4" ! example(`X-Forwarded-For`("1.2.3.4"))_ ^
       "X-Forwarded-For: 234.123.5.6, 8.8.8.8" ! example(`X-Forwarded-For`("234.123.5.6", "8.8.8.8"))_ ^
       "X-Forwarded-For: 1.2.3.4, unknown" ! example(`X-Forwarded-For`(Seq(Some(HttpIp("1.2.3.4")), None)))_ ^
+      "X-Forwarded-For: 0:0:0:0:0:0:0:1" ! example(`X-Forwarded-For`("::1"))_ ^
+      "X-Forwarded-For: 192.0.2.43, 2001:db8:cafe:0:0:0:0:17" ! example(`X-Forwarded-For`("192.0.2.43", "2001:db8:cafe::17"))_ ^
       p ^
       "X-Space-Ranger: no, this rock!" ! example(RawHeader("X-Space-Ranger", "no, this rock!"))_
 
@@ -180,7 +210,8 @@ class HttpHeaderSpec extends Specification {
     HttpParser.parseHeader(RawHeader(name, value)) === Right(expected) and expected.toString === fix(line)
   }
 
-  def fix(line: String) = line.replaceAll("""\s*;\s*q=\d?(\.\d)?""", "").replaceAll("""\s\s+""", " ")
+  def fix(line: String) = line.replaceAll("""\s\s+""", " ")
+  def fixQ(line: String) = fix(line).replaceAll("""\s*;\s*q=\d?(\.\d)?""", "")
 
   def errorExample(expectedError: ErrorInfo)(line: String) = {
     val Array(name, value) = line.split(": ", 2)

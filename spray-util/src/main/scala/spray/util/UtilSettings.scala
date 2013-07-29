@@ -16,22 +16,14 @@
 
 package spray.util
 
-import com.typesafe.config.{ ConfigFactory, Config }
-import akka.actor.ActorSystem
+import com.typesafe.config.Config
 
 case class UtilSettings(
-    logActorPathsWithDots: Boolean,
-    logActorSystemName: Boolean) {
-}
+  logActorPathsWithDots: Boolean,
+  logActorSystemName: Boolean)
 
-object UtilSettings {
-  def apply(system: ActorSystem): UtilSettings =
-    apply(system.settings.config getConfig "spray.util")
-
-  def apply(config: Config): UtilSettings = {
-    val c = config withFallback ConfigFactory.defaultReference(getClass.getClassLoader)
-    UtilSettings(
-      c getBoolean "log-actor-paths-with-dots",
-      c getBoolean "log-actor-system-name")
-  }
+object UtilSettings extends SettingsCompanion[UtilSettings]("spray.util") {
+  def fromSubConfig(c: Config) = apply(
+    c getBoolean "log-actor-paths-with-dots",
+    c getBoolean "log-actor-system-name")
 }
