@@ -28,28 +28,32 @@ import org.parboiled.common.Base64
 import spray.http.Uri.Query
 import spray.http.HttpMethod
 import spray.http.Uri
+import spray.routing.AuthenticationFailedRejection._
 
 package object hawk {
-  type HawkCredentialsRetriever[T] = Option[String] ⇒ Future[Option[(HawkCredentials[T])]]
+  type HawkCredentialsRetriever = Option[String] ⇒ Option[HawkCredentials]
+  type UserRetriever[T] = Option[String] ⇒ Future[Option[T]]
   type CurrenTimeProvider = () ⇒ Long
 }
 
 package hawk {
 
-  case class HawkCredentials[T](id: String, key: String, algorithm: String, user: T)
+  case class HawkCredentials(id: String, key: String, algorithm: String)
 
   /**
    * A HawkAuthenticator is a ContextAuthenticator that uses credentials passed to the server via the
    * HTTP `Authorization` header to authenticate the user and extract a user object.
    */
-  case class HawkAuthenticator[U](val hawkAuthenticator: HawkCredentialsRetriever[U], val timeProvider: CurrenTimeProvider)(implicit val executionContext: ExecutionContext)
-      extends ContextAuthenticator[U] {
+  case class HawkAuthenticator[U](val hawkCredsRetriever: HawkCredentialsRetriever,
+                                  val userRetriever: UserRetriever[U],
+                                  val timeProvider: CurrenTimeProvider)(implicit val executionContext: ExecutionContext)
+      extends HttpAuthenticator[U] {
 
     def scheme = "Hawk"
     def realm = ""
     def params(ctx: RequestContext): Map[String, String] = Map.empty
 
-    def apply(ctx: RequestContext) = {
+    override def apply(ctx: RequestContext) = {
       val authHeader = ctx.request.headers.findByType[`Authorization`]
       val method = ctx.request.method
       val uri = ctx.request.uri
@@ -60,27 +64,54 @@ package hawk {
         case _                                    ⇒ None
       }
 
+      //      authenticate(credentials, ctx) map {
+      //        case Some(hawkUser) ⇒
+      //          val mesg = produceHawkHeader(method, uri, credentials)
+      //          val hash = calculateMac(hawkUser.key, mesg.toString, hawkUser.algorithm)
+      //          if ((credentials map { _.params } map { _ get "mac" }).flatten.getOrElse("") == hash) {
+      //            Right(hawkUser.user)
+      //          } else {
+      //            Left(AuthenticationFailedRejection(CredentialsRejected, this))
+      //          }
+      //        case None ⇒ Left {
+      //          AuthenticationFailedRejection(CredentialsMissing, this)
+      //        }
+      //      }
       authenticate(credentials, ctx) map {
-        case Some(hawkUser) ⇒
-          val mesg = produceHawkHeader(method, uri, credentials)
-          val hash = calculateMac(hawkUser.key, mesg.toString, hawkUser.algorithm)
-          if ((credentials map { _.params } map { _ get "mac" }).flatten.getOrElse("") == hash) {
-            Right(hawkUser.user)
-          } else {
-            Left(AuthenticationFailedRejection(realm))
+        case Some(userContext) ⇒ Right(userContext)
+        case None ⇒
+          val cause = if (authHeader.isEmpty) CredentialsMissing else CredentialsRejected
+          Left(AuthenticationFailedRejection(cause, this))
+      }
+    }
+
+    def authenticate(credentials: Option[HttpCredentials], ctx: RequestContext) = {
+      var hawkHttpCredentials: Option[GenericHttpCredentials] = None
+      userRetriever {
+        //        (credentials map { _.params } map { _ get "id" }).flatten
+        hawkCredsRetriever {
+          credentials.flatMap {
+            case creds: GenericHttpCredentials ⇒ hawkHttpCredentials = Some(creds); creds.params.get("id")
+            case _                             ⇒ None
           }
-        case None ⇒ Left {
-          if (authHeader.isEmpty) AuthenticationRequiredRejection(scheme, realm, params(ctx))
-          else AuthenticationFailedRejection(realm)
+        } match {
+          case Some(hawkUser) ⇒
+            val method = ctx.request.method
+            val uri = ctx.request.uri
+            val mesg = produceHawkHeader(method, uri, hawkHttpCredentials)
+            val hash = calculateMac(hawkUser.key, mesg.toString, hawkUser.algorithm)
+            if ((hawkHttpCredentials map { _.params } map { _ get "mac" }).flatten.getOrElse("") == hash) {
+              Some(hawkUser.id)
+            } else {
+              None
+            }
+          case _ ⇒ None
         }
       }
     }
 
-    def authenticate(credentials: Option[GenericHttpCredentials], ctx: RequestContext) = {
-      hawkAuthenticator {
-        (credentials map { _.params } map { _ get "id" }).flatten
-      }
-    }
+    def getChallengeHeaders(httpRequest: HttpRequest) =
+      `WWW-Authenticate`(HttpChallenge(scheme, realm, params = Map.empty)) :: Nil
 
     private def produceHawkHeader(method: HttpMethod, uri: Uri, credentials: Option[GenericHttpCredentials]) = {
       val params = credentials map { _.params }
@@ -101,6 +132,7 @@ package hawk {
           uri.scheme match {
             case "http"  ⇒ 80
             case "https" ⇒ 443
+            case _       ⇒ 0
           }
       }).toString + "\n"
 
