@@ -55,8 +55,6 @@ package hawk {
 
     override def apply(ctx: RequestContext) = {
       val authHeader = ctx.request.headers.findByType[`Authorization`]
-      val method = ctx.request.method
-      val uri = ctx.request.uri
       val credentials = authHeader.map {
         case Authorization(creds) ⇒ creds
       } flatMap {
@@ -64,19 +62,6 @@ package hawk {
         case _                                    ⇒ None
       }
 
-      //      authenticate(credentials, ctx) map {
-      //        case Some(hawkUser) ⇒
-      //          val mesg = produceHawkHeader(method, uri, credentials)
-      //          val hash = calculateMac(hawkUser.key, mesg.toString, hawkUser.algorithm)
-      //          if ((credentials map { _.params } map { _ get "mac" }).flatten.getOrElse("") == hash) {
-      //            Right(hawkUser.user)
-      //          } else {
-      //            Left(AuthenticationFailedRejection(CredentialsRejected, this))
-      //          }
-      //        case None ⇒ Left {
-      //          AuthenticationFailedRejection(CredentialsMissing, this)
-      //        }
-      //      }
       authenticate(credentials, ctx) map {
         case Some(userContext) ⇒ Right(userContext)
         case None ⇒
@@ -98,7 +83,14 @@ package hawk {
           case Some(hawkUser) ⇒
             val method = ctx.request.method
             val uri = ctx.request.uri
-            val mesg = produceHawkHeader(method, uri, hawkHttpCredentials)
+            val xForwardedProtoHeader = ctx.request.headers.find {
+              header ⇒
+                header match {
+                  case h: RawHeader if (h.lowercaseName == "x-forwarded-proto") ⇒ true
+                  case _ ⇒ false
+                }
+            }
+            val mesg = produceHawkHeader(method, uri, hawkHttpCredentials, xForwardedProtoHeader)
             val hash = calculateMac(hawkUser.key, mesg.toString, hawkUser.algorithm)
             if ((hawkHttpCredentials map { _.params } map { _ get "mac" }).flatten.getOrElse("") == hash) {
               Some(hawkUser.id)
@@ -113,7 +105,8 @@ package hawk {
     def getChallengeHeaders(httpRequest: HttpRequest) =
       `WWW-Authenticate`(HttpChallenge(scheme, realm, params = Map.empty)) :: Nil
 
-    private def produceHawkHeader(method: HttpMethod, uri: Uri, credentials: Option[GenericHttpCredentials]) = {
+    private def produceHawkHeader(method: HttpMethod, uri: Uri, credentials: Option[GenericHttpCredentials],
+                                  xForwardedProtoHeader: Option[HttpHeader]) = {
       val params = credentials map { _.params }
       val buf = new StringBuilder
       buf ++= "hawk.1.header\n"
@@ -129,7 +122,14 @@ package hawk {
       buf ++= (uri.authority.port match {
         case i if (i > 0) ⇒ i
         case 0 ⇒
-          uri.scheme match {
+          // Need to determine which scheme to use. Check if we have X-Forwarded-Proto
+          // header set (usually by reverse proxies). Use this instead of original
+          // scheme when present
+          val scheme = xForwardedProtoHeader match {
+            case Some(header) ⇒ header.value
+            case None         ⇒ uri.scheme
+          }
+          scheme match {
             case "http"  ⇒ 80
             case "https" ⇒ 443
             case _       ⇒ 0

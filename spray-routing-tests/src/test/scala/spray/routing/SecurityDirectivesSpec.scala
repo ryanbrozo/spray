@@ -89,8 +89,11 @@ class SecurityDirectivesSpec extends RoutingSpec {
 
   val hawkDoAuth = HawkAuthenticator[String]({ _ ⇒ Some(hawkCreds) }, { userOption ⇒ Future.successful(userOption.map { _ ⇒ "Bob" }) }, { () ⇒ 12345L })
 
-  val hawkCredentials = GenericHttpCredentials("Hawk", Map(
+  val hawkCredentialsWithPort = GenericHttpCredentials("Hawk", Map(
     "id" -> "dh37fgj492je", "ts" -> "1353832234", "nonce" -> "j4h3g2", "ext" -> "some-app-ext-data", "mac" -> "6R4rV5iE+NPoym+WwjeHzjAGXUtLNIxmo1vpMofpLAE="))
+
+  val hawkCredentialsWithoutPort = GenericHttpCredentials("Hawk", Map(
+    "id" -> "dh37fgj492je", "ts" -> "1353832234", "nonce" -> "j4h3g2", "ext" -> "some-app-ext-data", "mac" -> "fmzTiKheFFqAeWWoVIt6vIflByB9X8TeYQjCdvq9bf4="))
 
   "the 'authenticate(HawkAuthenticator)' directive" should {
     "reject requests without Authorization header with an AuthenticationRequiredRejection" in {
@@ -99,31 +102,38 @@ class SecurityDirectivesSpec extends RoutingSpec {
       } ~> check { rejection === AuthenticationFailedRejection(CredentialsMissing, hawkDontAuth) }
     }
     "reject unauthenticated requests with Authorization header with an AuthorizationFailedRejection" in {
-      Get("http://www.example.com:8000/abc") ~> Authorization(hawkCredentials) ~>
+      Get("http://www.example.com:8000/abc") ~> Authorization(hawkCredentialsWithPort) ~>
         {
           authenticate(hawkDontAuth) { echoComplete }
         } ~> check { rejection === AuthenticationFailedRejection(CredentialsRejected, hawkDontAuth) }
     }
     "reject incorrect mac in Authorization header with an AuthorizationFailedRejection" in {
-      Get("http://www.example.com:8000/abc") ~> Authorization(hawkCredentials) ~>
+      Get("http://www.example.com:8000/abc") ~> Authorization(hawkCredentialsWithPort) ~>
         {
           authenticate(hawkDoAuth) { echoComplete }
         } ~> check { rejection === AuthenticationFailedRejection(CredentialsRejected, hawkDoAuth) }
     }
     "extract the object representing the user identity created by successful authentication" in {
-      Get("http://example.com:8000/resource/1?b=1&a=2") ~> Authorization(hawkCredentials) ~>
+      Get("http://example.com:8000/resource/1?b=1&a=2") ~> Authorization(hawkCredentialsWithPort) ~>
         {
           authenticate(hawkDoAuth) { echoComplete }
         } ~> check { entityAs[String] === "Bob" }
     }
     "properly handle exceptions thrown in its inner route" in {
       object TestException extends spray.util.SingletonException
-      Get("http://example.com:8000/resource/1?b=1&a=2") ~> Authorization(hawkCredentials) ~>
+      Get("http://example.com:8000/resource/1?b=1&a=2") ~> Authorization(hawkCredentialsWithPort) ~>
         {
           handleExceptions(ExceptionHandler.default) {
             authenticate(hawkDoAuth) { _ ⇒ throw TestException }
           }
         } ~> check { status === StatusCodes.InternalServerError }
+    }
+    "properly handle X-Forwarded-Proto header in case it is set" in {
+      Get("https://example.com/resource/1?b=1&a=2") ~> Authorization(hawkCredentialsWithoutPort) ~>
+        RawHeader("X-Forwarded-Proto", "http") ~>
+        {
+          authenticate(hawkDoAuth) { echoComplete }
+        } ~> check { entityAs[String] === "Bob" }
     }
   }
 }
