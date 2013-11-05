@@ -44,13 +44,13 @@ package hawk {
    * A HawkAuthenticator is a ContextAuthenticator that uses credentials passed to the server via the
    * HTTP `Authorization` header to authenticate the user and extract a user object.
    */
-  case class HawkAuthenticator[U](val hawkCredsRetriever: HawkCredentialsRetriever,
+  case class HawkAuthenticator[U](val realm: String,
+                                  val hawkCredsRetriever: HawkCredentialsRetriever,
                                   val userRetriever: UserRetriever[U],
                                   val timeProvider: CurrenTimeProvider)(implicit val executionContext: ExecutionContext)
       extends HttpAuthenticator[U] {
 
     def scheme = "Hawk"
-    def realm = ""
     def params(ctx: RequestContext): Map[String, String] = Map.empty
 
     override def apply(ctx: RequestContext) = {

@@ -85,9 +85,9 @@ class SecurityDirectivesSpec extends RoutingSpec {
 
   val hawkCreds = HawkCredentials("dh37fgj492je", "werxhqb98rpaxn39848xrunpaw3489ruxnpa98w4rxn", "HMACSHA256")
 
-  val hawkDontAuth = HawkAuthenticator[String]({ _ ⇒ Some(hawkCreds) }, { _ ⇒ Future.successful(None) }, { () ⇒ 12345L })
+  val hawkDontAuth = HawkAuthenticator[String]("testrealm", { _ ⇒ Some(hawkCreds) }, { _ ⇒ Future.successful(None) }, { () ⇒ 12345L })
 
-  val hawkDoAuth = HawkAuthenticator[String]({ _ ⇒ Some(hawkCreds) }, { userOption ⇒ Future.successful(userOption.map { _ ⇒ "Bob" }) }, { () ⇒ 12345L })
+  val hawkDoAuth = HawkAuthenticator[String]("testrealm", { _ ⇒ Some(hawkCreds) }, { userOption ⇒ Future.successful(userOption.map { _ ⇒ "Bob" }) }, { () ⇒ 12345L })
 
   val hawkCredentialsWithPort = GenericHttpCredentials("Hawk", Map(
     "id" -> "dh37fgj492je", "ts" -> "1353832234", "nonce" -> "j4h3g2", "ext" -> "some-app-ext-data", "mac" -> "6R4rV5iE+NPoym+WwjeHzjAGXUtLNIxmo1vpMofpLAE="))
